@@ -254,6 +254,86 @@
             color: #ffffff;
             padding: 8px;
         }
+
+        /* Proctoring Detection Styles */
+        .status-indicator {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-text {
+            color: #00ff00;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .detection-stats {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-warning {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid rgba(255, 165, 0, 0.3);
+            color: #ffa500;
+        }
+
+        .btn-warning:hover {
+            background: rgba(255, 165, 0, 0.2);
+            border-color: rgba(255, 165, 0, 0.5);
+        }
+
+        .btn-success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #00ff00;
+        }
+
+        .btn-success:hover {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: rgba(0, 255, 0, 0.5);
+        }
+
+        .btn-danger {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #ff0000;
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 0, 0, 0.2);
+            border-color: rgba(255, 0, 0, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -326,6 +406,9 @@
                             <option value="presentation">Presentation Skills</option>
                             <option value="negotiation">Negotiation</option>
                             <option value="devops">DevOps & Infrastructure</option>
+                            <option value="math">Mathematics</option>
+                            <option value="reasoning">Reasoning & Logic</option>
+                            <option value="general">General Knowledge</option>
                         </select>
                     </div>
                 </div>
@@ -349,6 +432,73 @@
                         <div class="icon-option" data-icon="settings">
                             <img src="./assests/icons/settings.png" alt="Settings">
                             <div>Settings</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">
+                    <i class="fas fa-shield-alt"></i>
+                    Proctoring Detection
+                </div>
+                <div class="settings-section-content">
+                    <div class="settings-item">
+                        <div>
+                            <div class="settings-item-label">Auto-Detection Status</div>
+                            <div class="settings-item-description">Automatically detect and shutdown before proctoring software starts</div>
+                        </div>
+                        <div class="status-indicator" id="proctoringStatus">
+                            <span class="status-text">Monitoring...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-item">
+                        <div>
+                            <div class="settings-item-label">Detection Statistics</div>
+                            <div class="settings-item-description">Current monitoring configuration</div>
+                        </div>
+                        <div class="detection-stats" id="detectionStats">
+                            <div class="stat-item">
+                                <span class="stat-label">Processes:</span>
+                                <span class="stat-value" id="processCount">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Window Titles:</span>
+                                <span class="stat-value" id="windowTitleCount">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Registry Keys:</span>
+                                <span class="stat-value" id="registryKeyCount">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-item">
+                        <div>
+                            <div class="settings-item-label">Test Detection</div>
+                            <div class="settings-item-description">Trigger a test detection to verify emergency shutdown works</div>
+                        </div>
+                        <button class="btn btn-warning" id="testDetectionButton">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Test Emergency Shutdown
+                        </button>
+                    </div>
+
+                    <div class="settings-item">
+                        <div>
+                            <div class="settings-item-label">Manual Control</div>
+                            <div class="settings-item-description">Start or stop proctoring detection monitoring</div>
+                        </div>
+                        <div class="control-buttons">
+                            <button class="btn btn-success" id="startMonitoringButton">
+                                <i class="fas fa-play"></i>
+                                Start
+                            </button>
+                            <button class="btn btn-danger" id="stopMonitoringButton">
+                                <i class="fas fa-stop"></i>
+                                Stop
+                            </button>
                         </div>
                     </div>
                 </div>

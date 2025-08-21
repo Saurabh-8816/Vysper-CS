@@ -8,6 +8,7 @@ const config = require("./src/core/config");
 const ocrService = require("./src/services/ocr.service");
 const speechService = require("./src/services/speech.service");
 const llmService = require("./src/services/llm.service");
+const proctoringDetectionService = require("./src/services/proctoring-detection.service");
 
 // Managers
 const windowManager = require("./src/managers/window.manager");
@@ -28,6 +29,7 @@ class ApplicationController {
 
     this.setupStealth();
     this.setupEventHandlers();
+    this.setupProctoringDetection();
   }
 
   setupStealth() {
@@ -56,6 +58,84 @@ class ApplicationController {
 
     this.setupIPCHandlers();
     this.setupServiceEventHandlers();
+  }
+
+  setupProctoringDetection() {
+    // Set up proctoring detection event handlers
+    proctoringDetectionService.on('proctoring-detected', (detectionData) => {
+      logger.error('PROCTORING SOFTWARE DETECTED - EMERGENCY SHUTDOWN INITIATED', {
+        threats: detectionData.threats,
+        timestamp: detectionData.timestamp
+      });
+      
+      // Show emergency shutdown warning window
+      windowManager.showEmergencyShutdownWarning(detectionData);
+      
+      // Broadcast warning to all windows before shutdown
+      windowManager.broadcastToAllWindows('emergency-shutdown-warning', {
+        reason: 'proctoring_detected',
+        threats: detectionData.threats,
+        countdown: 3
+      });
+      
+      // Emergency shutdown after brief delay
+      setTimeout(() => {
+        this.emergencyShutdown('proctoring_detected', detectionData.threats);
+      }, 3000);
+    });
+
+    proctoringDetectionService.on('monitoring-started', () => {
+      logger.info('Proctoring detection monitoring active');
+    });
+
+    proctoringDetectionService.on('emergency-shutdown', (shutdownData) => {
+      logger.error('Emergency shutdown completed', shutdownData);
+    });
+
+    // Start monitoring immediately
+    proctoringDetectionService.startMonitoring((reason, threats) => {
+      this.emergencyShutdown(reason, threats);
+    });
+  }
+
+  emergencyShutdown(reason, threats = []) {
+    logger.error('EMERGENCY SHUTDOWN INITIATED', {
+      reason,
+      threats: threats.map(t => t.threats || t).flat(),
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      // Stop all services immediately
+      proctoringDetectionService.stopMonitoring();
+      speechService.stopRecording();
+      
+      // Clear all session data
+      sessionManager.clear();
+      
+      // Hide all windows immediately
+      windowManager.hideAllWindows();
+      
+      // Destroy all windows
+      windowManager.destroyAllWindows();
+      
+      // Unregister all shortcuts
+      globalShortcut.unregisterAll();
+      
+      // Force quit immediately
+      const { app } = require("electron");
+      app.quit();
+      
+      // If quit doesn't work, force exit
+      setTimeout(() => {
+        process.exit(0);
+      }, 1000);
+      
+    } catch (error) {
+      logger.error("Error during emergency shutdown:", error);
+      // Force exit even if cleanup fails
+      process.exit(1);
+    }
   }
 
   async onAppReady() {
@@ -521,6 +601,62 @@ class ApplicationController {
         process.exit(1);
       }
     });
+
+    // Proctoring detection IPC handlers
+    ipcMain.handle("get-proctoring-detection-status", () => {
+      return proctoringDetectionService.getDetectionStats();
+    });
+
+    ipcMain.handle("start-proctoring-monitoring", () => {
+      proctoringDetectionService.startMonitoring((reason, threats) => {
+        this.emergencyShutdown(reason, threats);
+      });
+      return { success: true, status: proctoringDetectionService.getDetectionStats() };
+    });
+
+    ipcMain.handle("stop-proctoring-monitoring", () => {
+      proctoringDetectionService.stopMonitoring();
+      return { success: true, status: proctoringDetectionService.getDetectionStats() };
+    });
+
+    ipcMain.handle("trigger-test-proctoring-detection", () => {
+      // Use a safe test that doesn't trigger real detection
+      logger.warn('TEST: Manual proctoring detection test triggered from settings');
+      
+      // Simulate detection event without actually detecting anything
+      const testThreatData = {
+        threats: [{
+          detected: true,
+          method: 'manual_test',
+          threats: ['test_proctoring_software'],
+          severity: 'HIGH'
+        }],
+        timestamp: new Date().toISOString(),
+        action: 'test_shutdown_initiated'
+      };
+      
+      // Show emergency shutdown warning
+      windowManager.showEmergencyShutdownWarning(testThreatData);
+      
+      // Broadcast warning to all windows
+      windowManager.broadcastToAllWindows('emergency-shutdown-warning', {
+        reason: 'test_mode',
+        threats: testThreatData.threats,
+        countdown: 3
+      });
+      
+      // Test shutdown after brief delay
+      setTimeout(() => {
+        this.emergencyShutdown('test_mode', testThreatData.threats);
+      }, 4000); // Slightly longer delay for test
+      
+      return { success: true, message: "Test emergency shutdown initiated" };
+    });
+
+    ipcMain.handle("update-proctoring-signatures", (event, newSignatures) => {
+      proctoringDetectionService.updateSignatures(newSignatures);
+      return { success: true, stats: proctoringDetectionService.getDetectionStats() };
+    });
   }
 
   toggleSpeechRecognition() {
@@ -609,6 +745,9 @@ class ApplicationController {
       "presentation",
       "negotiation",
       "devops",
+      "math",
+      "reasoning",
+      "general",
     ];
 
     const currentIndex = availableSkills.indexOf(this.activeSkill);
@@ -699,7 +838,7 @@ class ApplicationController {
       sessionManager.addUserInput(text, 'llm_input');
 
       // Check if current skill needs programming language context
-      const skillsRequiringProgrammingLanguage = ['programming', 'dsa', 'devops', 'system-design', 'data-science'];
+      const skillsRequiringProgrammingLanguage = ['programming', 'dsa', 'devops', 'system-design', 'data-science', 'math', 'reasoning'];
       const needsProgrammingLanguage = skillsRequiringProgrammingLanguage.includes(this.activeSkill);
       
       const llmResult = await llmService.processTextWithSkill(
@@ -778,7 +917,7 @@ class ApplicationController {
       });
 
       // Check if current skill needs programming language context
-      const skillsRequiringProgrammingLanguage = ['programming', 'dsa', 'devops', 'system-design', 'data-science'];
+      const skillsRequiringProgrammingLanguage = ['programming', 'dsa', 'devops', 'system-design', 'data-science', 'math', 'reasoning'];
       const needsProgrammingLanguage = skillsRequiringProgrammingLanguage.includes(this.activeSkill);
 
       const llmResult = await llmService.processTranscriptionWithIntelligentResponse(
@@ -934,6 +1073,9 @@ class ApplicationController {
   }
 
   onWillQuit() {
+    // Stop proctoring detection
+    proctoringDetectionService.stopMonitoring();
+    
     globalShortcut.unregisterAll();
     windowManager.destroyAllWindows();
 

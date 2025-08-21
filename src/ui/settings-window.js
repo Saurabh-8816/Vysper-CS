@@ -10,6 +10,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeSkillSelect = document.getElementById('activeSkill');
     const iconGrid = document.getElementById('iconGrid');
 
+    // Proctoring detection elements
+    const proctoringStatus = document.getElementById('proctoringStatus');
+    const processCount = document.getElementById('processCount');
+    const windowTitleCount = document.getElementById('windowTitleCount');
+    const registryKeyCount = document.getElementById('registryKeyCount');
+    const testDetectionButton = document.getElementById('testDetectionButton');
+    const startMonitoringButton = document.getElementById('startMonitoringButton');
+    const stopMonitoringButton = document.getElementById('stopMonitoringButton');
+
     // Check if window.api exists
     if (!window.api) {
         console.error('window.api not available');
@@ -222,6 +231,91 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize icon grid
     initializeIconGrid();
+
+    // Proctoring detection functionality
+    const initializeProctoringDetection = () => {
+        // Load initial status
+        updateProctoringStatus();
+        
+        // Set up periodic status updates
+        setInterval(updateProctoringStatus, 5000);
+    };
+
+    const updateProctoringStatus = async () => {
+        try {
+            const status = await window.api.invoke('get-proctoring-detection-status');
+            
+            if (proctoringStatus) {
+                const statusText = proctoringStatus.querySelector('.status-text');
+                if (status.isMonitoring) {
+                    statusText.textContent = 'Monitoring Active';
+                    statusText.style.color = '#00ff00';
+                    proctoringStatus.style.borderColor = 'rgba(0, 255, 0, 0.3)';
+                    proctoringStatus.style.backgroundColor = 'rgba(0, 255, 0, 0.1)';
+                } else {
+                    statusText.textContent = 'Monitoring Stopped';
+                    statusText.style.color = '#ff0000';
+                    proctoringStatus.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+                    proctoringStatus.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+                }
+            }
+            
+            // Update statistics
+            if (processCount) processCount.textContent = status.signatures?.processCount || '-';
+            if (windowTitleCount) windowTitleCount.textContent = status.signatures?.windowTitleCount || '-';
+            if (registryKeyCount) registryKeyCount.textContent = status.signatures?.registryKeyCount || '-';
+            
+        } catch (error) {
+            console.error('Failed to get proctoring detection status:', error);
+        }
+    };
+
+    // Proctoring detection event handlers
+    if (testDetectionButton) {
+        testDetectionButton.addEventListener('click', async () => {
+            try {
+                const result = await window.api.invoke('trigger-test-proctoring-detection');
+                console.log('Test detection triggered:', result);
+                
+                // Show visual feedback
+                testDetectionButton.style.background = 'rgba(255, 0, 0, 0.3)';
+                testDetectionButton.textContent = 'Emergency Shutdown Triggered!';
+                
+                // Note: The app should shut down after this, so this is just for immediate feedback
+            } catch (error) {
+                console.error('Failed to trigger test detection:', error);
+                testDetectionButton.style.background = 'rgba(255, 0, 0, 0.2)';
+                testDetectionButton.textContent = 'Error!';
+            }
+        });
+    }
+
+    if (startMonitoringButton) {
+        startMonitoringButton.addEventListener('click', async () => {
+            try {
+                const result = await window.api.invoke('start-proctoring-monitoring');
+                console.log('Monitoring started:', result);
+                updateProctoringStatus();
+            } catch (error) {
+                console.error('Failed to start monitoring:', error);
+            }
+        });
+    }
+
+    if (stopMonitoringButton) {
+        stopMonitoringButton.addEventListener('click', async () => {
+            try {
+                const result = await window.api.invoke('stop-proctoring-monitoring');
+                console.log('Monitoring stopped:', result);
+                updateProctoringStatus();
+            } catch (error) {
+                console.error('Failed to stop monitoring:', error);
+            }
+        });
+    }
+
+    // Initialize proctoring detection
+    initializeProctoringDetection();
 
     // Request settings on load
     setTimeout(() => {

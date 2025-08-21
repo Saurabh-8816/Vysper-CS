@@ -6,7 +6,7 @@ class PromptLoader {
     this.prompts = new Map();
     this.promptsLoaded = false;
     this.skillPromptSent = new Set(); // Track which skills have had their system prompt sent
-    this.skillsRequiringProgrammingLanguage = ['programming', 'dsa', 'devops', 'system-design', 'data-science'];
+    this.skillsRequiringProgrammingLanguage = ['programming', 'dsa', 'devops', 'system-design', 'data-science', 'math', 'reasoning'];
   }
 
   /**

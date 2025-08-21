@@ -43,6 +43,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateActiveSkill: (skill) => ipcRenderer.invoke('update-active-skill', skill),
   restartAppForStealth: () => ipcRenderer.invoke('restart-app-for-stealth'),
   closeWindow: () => ipcRenderer.invoke('close-window'),
+  
+  // Proctoring detection
+  getProctoringDetectionStatus: () => ipcRenderer.invoke('get-proctoring-detection-status'),
+  startProctoringMonitoring: () => ipcRenderer.invoke('start-proctoring-monitoring'),
+  stopProctoringMonitoring: () => ipcRenderer.invoke('stop-proctoring-monitoring'),
+  triggerTestProctoringDetection: () => ipcRenderer.invoke('trigger-test-proctoring-detection'),
+  updateProctoringSignatures: (signatures) => ipcRenderer.invoke('update-proctoring-signatures', signatures),
+  
   quit: () => {
     try {
       ipcRenderer.send('quit-app');
@@ -62,6 +70,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Event listeners
   onTranscriptionReceived: (callback) => ipcRenderer.on('transcription-received', callback),
   onInterimTranscription: (callback) => ipcRenderer.on('interim-transcription', callback),
+  onProctoringStatusUpdate: (callback) => ipcRenderer.on('proctoring-status-update', callback),
   onSpeechStatus: (callback) => ipcRenderer.on('speech-status', callback),
   onSpeechError: (callback) => ipcRenderer.on('speech-error', callback),
   onSessionEvent: (callback) => ipcRenderer.on('session-event', callback),

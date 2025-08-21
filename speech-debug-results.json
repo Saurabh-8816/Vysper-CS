@@ -1,0 +1,40 @@
+{
+  "environment": {
+    "nodeVersion": "v22.13.1",
+    "platform": "win32",
+    "envFile": true
+  },
+  "dependencies": {
+    "microsoft-cognitiveservices-speech-sdk": true,
+    "node-record-lpcm16": true,
+    "dotenv": true,
+    "sox": true
+  },
+  "speechService": {
+    "status": {
+      "isRecording": false,
+      "isInitialized": true,
+      "sessionDuration": 0,
+      "retryCount": 0,
+      "config": {
+        "language": "en-US",
+        "enableDictation": true,
+        "enableAudioLogging": false,
+        "outputFormat": "detailed"
+      }
+    },
+    "error": "Could not start microphone capture with any audio program",
+    "transcriptionWorking": false
+  },
+  "microphone": {
+    "accessible": false
+  },
+  "azure": {
+    "keyProvided": true,
+    "regionProvided": true,
+    "connectionTest": {
+      "success": true,
+      "message": "Connection test successful"
+    }
+  }
+}

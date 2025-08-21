@@ -6,7 +6,7 @@ const { promptLoader } = require('../../prompt-loader');
 class LLMService {
   constructor() {
     this.client = null;
-    this.model = null;
+    // this.model = null; // We will now select the model dynamically
     this.isInitialized = false;
     this.requestCount = 0;
     this.errorCount = 0;
@@ -27,19 +27,23 @@ class LLMService {
 
     try {
       this.client = new GoogleGenerativeAI(apiKey);
-      this.model = this.client.getGenerativeModel({ 
-        model: config.get('llm.gemini.model') 
-      });
+      // No longer setting a single model here
       this.isInitialized = true;
       
-      logger.info('Gemini AI client initialized successfully', {
-        model: config.get('llm.gemini.model')
-      });
+      logger.info('Gemini AI client initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Gemini client', { 
         error: error.message 
       });
     }
+  }
+
+  getModelForSkill(skill) {
+    const highDemandSkills = ['system-design', 'math', 'reasoning'];
+    if (highDemandSkills.includes(skill)) {
+      return 'gemini-1.5-pro-latest';
+    }
+    return config.get('llm.gemini.model') || 'gemini-1.5-flash-latest';
   }
 
   async processTextWithSkill(text, activeSkill, sessionMemory = [], programmingLanguage = null) {
@@ -60,11 +64,12 @@ class LLMService {
       });
 
       const geminiRequest = this.buildGeminiRequest(text, activeSkill, sessionMemory, programmingLanguage);
+      const modelName = this.getModelForSkill(activeSkill);
       
       // Try standard method first
       let response;
       try {
-        response = await this.executeRequest(geminiRequest);
+        response = await this.executeRequest(geminiRequest, modelName);
       } catch (error) {
         // If fetch failed, try alternative method
         if (error.message.includes('fetch failed') && config.get('llm.gemini.enableFallbackMethod')) {
@@ -72,7 +77,7 @@ class LLMService {
             error: error.message,
             requestId: this.requestCount
           });
-          response = await this.executeAlternativeRequest(geminiRequest);
+          response = await this.executeAlternativeRequest(geminiRequest, modelName);
         } else {
           throw error;
         }
@@ -131,11 +136,12 @@ class LLMService {
       });
 
       const geminiRequest = this.buildIntelligentTranscriptionRequest(text, activeSkill, sessionMemory, programmingLanguage);
+      const modelName = this.getModelForSkill(activeSkill);
       
       // Try standard method first
       let response;
       try {
-        response = await this.executeRequest(geminiRequest);
+        response = await this.executeRequest(geminiRequest, modelName);
       } catch (error) {
         // If fetch failed, try alternative method
         if (error.message.includes('fetch failed') && config.get('llm.gemini.enableFallbackMethod')) {
@@ -143,7 +149,7 @@ class LLMService {
             error: error.message,
             requestId: this.requestCount
           });
-          response = await this.executeAlternativeRequest(geminiRequest);
+          response = await this.executeAlternativeRequest(geminiRequest, modelName);
         } else {
           throw error;
         }
@@ -488,13 +494,13 @@ Remember: Be intelligent about filtering - only provide detailed responses when 
     return `Context: ${activeSkill.toUpperCase()} analysis request\n\nText to analyze:\n${text}`;
   }
 
-  async executeRequest(geminiRequest) {
+  async executeRequest(geminiRequest, modelName) {
     const maxRetries = config.get('llm.gemini.maxRetries');
     const timeout = config.get('llm.gemini.timeout');
     
     // Add request debugging
     logger.debug('Executing Gemini request', {
-      hasModel: !!this.model,
+      modelName,
       hasClient: !!this.client,
       requestKeys: Object.keys(geminiRequest),
       timeout,
@@ -508,6 +514,8 @@ Remember: Be intelligent about filtering - only provide detailed responses when 
         // Pre-flight check
         await this.performPreflightCheck();
         
+        const model = this.client.getGenerativeModel({ model: modelName });
+
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Request timeout')), timeout)
         );
@@ -517,7 +525,7 @@ Remember: Be intelligent about filtering - only provide detailed responses when 
           timeout
         });
         
-        const requestPromise = this.model.generateContent(geminiRequest);
+        const requestPromise = model.generateContent(geminiRequest);
         const result = await Promise.race([requestPromise, timeoutPromise]);
         
         if (!result.response) {
@@ -798,6 +806,7 @@ Remember: Be intelligent about filtering - only provide detailed responses when 
         logger.warn('Network connectivity issues detected', networkCheck);
       }
 
+      const model = this.client.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }); // Use flash for quick test
       const testRequest = {
         contents: [{
           role: 'user',
@@ -810,7 +819,7 @@ Remember: Be intelligent about filtering - only provide detailed responses when 
       };
 
       const startTime = Date.now();
-      const result = await this.model.generateContent(testRequest);
+      const result = await model.generateContent(testRequest);
       const latency = Date.now() - startTime;
       const response = result.response.text();
       
@@ -864,10 +873,10 @@ Remember: Be intelligent about filtering - only provide detailed responses when 
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async executeAlternativeRequest(geminiRequest) {
+  async executeAlternativeRequest(geminiRequest, modelName) {
     const https = require('https');
     const apiKey = config.getApiKey('GEMINI');
-    const model = config.get('llm.gemini.model');
+    const model = modelName || config.get('llm.gemini.model');
     
     logger.info('Using alternative HTTPS request method');
     

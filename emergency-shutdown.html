@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Shutdown Warning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .warning-container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+
+        .warning-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .warning-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .warning-message {
+            font-size: 18px;
+            margin-bottom: 24px;
+            line-height: 1.4;
+        }
+
+        .countdown {
+            font-size: 48px;
+            font-weight: bold;
+            color: #ffff00;
+            text-shadow: 0 0 20px rgba(255, 255, 0, 0.5);
+            margin-bottom: 20px;
+        }
+
+        .threat-list {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .threat-item {
+            padding: 4px 0;
+            font-size: 14px;
+            font-family: monospace;
+            color: #ffcccc;
+        }
+
+        .blink {
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="warning-container">
+        <div class="warning-icon">⚠️</div>
+        <div class="warning-title blink">EMERGENCY SHUTDOWN</div>
+        <div class="warning-message">
+            Proctoring software detected!<br>
+            Vysper will close automatically to maintain stealth.
+        </div>
+        <div class="countdown" id="countdown">3</div>
+        <div class="warning-message">
+            This action protects you from detection during monitored sessions.
+        </div>
+        <div class="threat-list" id="threatList">
+            <div style="font-weight: bold; margin-bottom: 8px;">Detected Threats:</div>
+        </div>
+    </div>
+
+    <script>
+        let countdown = 3;
+        const countdownElement = document.getElementById('countdown');
+        const threatListElement = document.getElementById('threatList');
+
+        // Listen for threat data from main process
+        if (window.electronAPI) {
+            window.electronAPI.on('emergency-shutdown-warning', (data) => {
+                displayThreats(data.threats);
+            });
+        }
+
+        function displayThreats(threats) {
+            threats.forEach(threat => {
+                if (threat.threats && Array.isArray(threat.threats)) {
+                    threat.threats.forEach(threatName => {
+                        const threatDiv = document.createElement('div');
+                        threatDiv.className = 'threat-item';
+                        threatDiv.textContent = `• ${threatName} (${threat.method})`;
+                        threatListElement.appendChild(threatDiv);
+                    });
+                }
+            });
+        }
+
+        // Countdown timer
+        const timer = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(timer);
+                countdownElement.textContent = '0';
+                countdownElement.style.color = '#ff0000';
+                document.querySelector('.warning-title').textContent = 'SHUTTING DOWN...';
+            }
+        }, 1000);
+
+        // Auto-close after countdown
+        setTimeout(() => {
+            window.close();
+        }, 4000);
+    </script>
+</body>
+</html>

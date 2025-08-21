@@ -67,6 +67,23 @@ class WindowManager {
         alwaysOnTop: true,
         visibleOnAllWorkspaces: true,
         fullscreenable: false
+      },
+      emergencyShutdown: {
+        width: 500,
+        height: 400,
+        file: 'emergency-shutdown.html',
+        title: 'Emergency Shutdown Warning',
+        frame: false,
+        titleBarStyle: 'hidden',
+        transparent: false,
+        resizable: false,
+        minimizable: false,
+        maximizable: false,
+        closable: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        visibleOnAllWorkspaces: true,
+        fullscreenable: false
       }
     };
 
@@ -1327,6 +1344,52 @@ class WindowManager {
     }
     
     logger.info('All windows destroyed');
+  }
+
+  showEmergencyShutdownWarning(threatData) {
+    try {
+      // Create emergency shutdown warning window
+      const warningWindow = this.createWindow('emergencyShutdown', false);
+      
+      // Position it in the center of the screen
+      const display = screen.getPrimaryDisplay();
+      const { width: screenWidth, height: screenHeight } = display.workAreaSize;
+      
+      // Get window size after window is created
+      const windowBounds = warningWindow.getBounds();
+      const windowWidth = windowBounds.width;
+      const windowHeight = windowBounds.height;
+      
+      const x = Math.round((screenWidth - windowWidth) / 2);
+      const y = Math.round((screenHeight - windowHeight) / 2);
+      
+      warningWindow.setPosition(x, y);
+      warningWindow.show();
+      warningWindow.focus();
+      
+      // Send threat data to the warning window
+      setTimeout(() => {
+        if (!warningWindow.isDestroyed()) {
+          warningWindow.webContents.send('emergency-shutdown-warning', threatData);
+        }
+      }, 500);
+      
+      // Auto-close after 4 seconds
+      setTimeout(() => {
+        if (!warningWindow.isDestroyed()) {
+          warningWindow.close();
+        }
+      }, 4000);
+      
+      logger.info('Emergency shutdown warning displayed', {
+        threatCount: threatData.threats?.length || 0
+      });
+      
+    } catch (error) {
+      logger.error('Failed to show emergency shutdown warning', {
+        error: error.message
+      });
+    }
   }
 
   setupScreenTracking() {
