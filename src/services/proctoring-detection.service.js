@@ -33,14 +33,23 @@ class ProctoringDetectionService extends EventEmitter {
         'secureexam', 'testguard', 'examguard', 'procwatch',
         
         // Browser-based proctoring extensions (process names may vary)
-        'chromedriver', 'geckodriver', 'edgedriver' // When used by proctoring
+        'chromedriver', 'geckodriver', 'edgedriver', // When used by proctoring
+        
+        // Browser processes when running proctoring extensions
+        'chrome.exe', 'firefox.exe', 'msedge.exe', 'brave.exe',
+        
+        // JavaScript-based proctoring detection strings
+        'proctoringjs', 'exammonitor.js', 'webcamproctoring', 'screenmonitor'
       ],
       
       windowTitles: [
         'secure exam mode', 'exam monitor', 'proctoring session',
         'lockdown browser', 'test environment', 'assessment platform', 
         'online examination', 'mercer mettl', 'respondus lockdown', 
-        'proctoru session', 'examsoft secure'
+        'proctoru session', 'examsoft secure', 'hackerrank assessment',
+        'hackerearth test', 'codingninjas exam', 'coding assessment',
+        'online coding test', 'programming assessment', 'technical interview',
+        'secure browser mode', 'examination mode', 'test mode active'
       ],
       
       registryKeys: [
@@ -113,7 +122,9 @@ class ProctoringDetectionService extends EventEmitter {
         this.scanRunningProcesses(),
         this.scanWindowTitles(),
         this.scanNetworkConnections(),
-        this.scanRegistryKeys()
+        this.scanRegistryKeys(),
+        this.scanBrowserTabs(),
+        this.scanWebcamUsage()
       ]);
 
       const threats = [];
@@ -272,6 +283,80 @@ class ProctoringDetectionService extends EventEmitter {
           });
         } else {
           resolve({ detected: false, method: 'registry_scan' });
+        }
+      });
+    });
+  }
+
+  async scanBrowserTabs() {
+    return new Promise((resolve) => {
+      if (process.platform !== 'win32') {
+        resolve({ detected: false, method: 'browser_tab_scan', reason: 'not_windows' });
+        return;
+      }
+
+      // Check for proctoring-related browser tabs by examining window titles of browser processes
+      const command = 'powershell "Get-Process chrome,firefox,msedge,brave -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -ne \\"\\"} | Select-Object ProcessName,MainWindowTitle"';
+      
+      exec(command, (error, stdout) => {
+        if (error) {
+          resolve({ detected: false, method: 'browser_tab_scan', error: error.message });
+          return;
+        }
+
+        const browserTitles = stdout.toLowerCase();
+        const proctoringDomains = [
+          'mettl.com', 'mercer.com', 'hackerrank.com', 'hackerearth.com',
+          'proctoru.com', 'respondus.com', 'examsoft.com', 'proctorio.com',
+          'assessment', 'coding test', 'interview', 'examination'
+        ];
+
+        const detectedDomains = proctoringDomains.filter(domain => 
+          browserTitles.includes(domain.toLowerCase())
+        );
+
+        if (detectedDomains.length > 0) {
+          resolve({
+            detected: true,
+            method: 'browser_tab_scan',
+            threats: detectedDomains,
+            severity: 'HIGH'
+          });
+        } else {
+          resolve({ detected: false, method: 'browser_tab_scan' });
+        }
+      });
+    });
+  }
+
+  async scanWebcamUsage() {
+    return new Promise((resolve) => {
+      if (process.platform !== 'win32') {
+        resolve({ detected: false, method: 'webcam_scan', reason: 'not_windows' });
+        return;
+      }
+
+      // Check if webcam is being used by other processes (indicating proctoring)
+      const command = 'powershell "Get-Process | Where-Object {$_.ProcessName -match \\"chrome|firefox|msedge|webcam|camera\\"} | Select-Object ProcessName"';
+      
+      exec(command, (error, stdout) => {
+        if (error) {
+          resolve({ detected: false, method: 'webcam_scan', error: error.message });
+          return;
+        }
+
+        // This is a basic check - in reality, webcam usage detection is complex
+        // and would require checking device handles or Windows APIs
+        const processes = stdout.toLowerCase();
+        if (processes.includes('camera') || processes.includes('webcam')) {
+          resolve({
+            detected: true,
+            method: 'webcam_scan',
+            threats: ['potential_webcam_monitoring'],
+            severity: 'MEDIUM'
+          });
+        } else {
+          resolve({ detected: false, method: 'webcam_scan' });
         }
       });
     });
